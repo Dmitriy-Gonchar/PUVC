@@ -41,10 +41,11 @@ class PUVC: UIViewController, UIGestureRecognizerDelegate
 	private var startPosition: CGFloat = .zero
 	private var prevTime: Date = Date()
 	private var startLayerPosition: CGFloat = .zero
-	@IBOutlet weak var backgroundIV: UIImageView!
-	@IBOutlet weak var mover: UIView!
-	@IBOutlet weak var tableView: UITableView!
+	@IBOutlet private weak var backgroundIV: UIImageView!
+	@IBOutlet private weak var mover: UIView!
+	@IBOutlet private weak var tableView: UITableView!
 	private var layer: CALayer = CALayer()
+	@IBOutlet private weak var heightTV: NSLayoutConstraint!
 
 	private var vib = UIImpactFeedbackGenerator(style: .light)
 
@@ -72,7 +73,24 @@ class PUVC: UIViewController, UIGestureRecognizerDelegate
 		set
 		{
 			self.tableView.dataSource = newValue
-			self.tableView.reloadData()
+			self.height = self.calcHeight()
+		}
+	}
+
+	private func calcHeight() -> CGFloat
+	{
+		let range = 0..<(self.dataSource?.tableView(self.tableView, numberOfRowsInSection: 0) ?? 0)
+		return range.reduce(into: CGFloat())
+		{
+			$0 += self.delegate?.tableView?(self.tableView, heightForRowAt: IndexPath(row: $1, section: 0)) ?? 0
+		}
+	}
+
+	public var height: CGFloat?
+	{
+		didSet
+		{
+			self.heightTV.constant = height ?? self.heightTV.constant
 		}
 	}
 
@@ -136,7 +154,7 @@ class PUVC: UIViewController, UIGestureRecognizerDelegate
 
 	@objc public func pan(_ s: UIPanGestureRecognizer)
 	{
-		let height = self.view.layer.frame.height
+		let height = self.tableView.layer.frame.height
 		let velocity = s.velocity(in: self.view.window).y
 		let swipePosition = s.location(in: self.view.window).y
 
@@ -149,7 +167,7 @@ class PUVC: UIViewController, UIGestureRecognizerDelegate
 
 		case .changed:
 			let i2 = self.prevTime.timeIntervalSince1970 - Date().timeIntervalSince1970
-			if self.startPosition < self.view.window!.frame.height - self.mover.frame.height
+			if self.startPosition > self.tableView.frame.minY
 			{
 				let realShift = swipePosition - self.startPosition
 				let position = max(self.startLayerPosition + realShift, self.startLayerPosition)
@@ -169,20 +187,16 @@ class PUVC: UIViewController, UIGestureRecognizerDelegate
 				{
 					self.layer.opacity = 0
 				}
-			completion:
-				{
-					if $0
-					{
-						self.layer.opacity = 0
-						if abs(velocity) > abs(threshold)
-						{
-							self.vib.prepare()
-							self.vib.impactOccurred()
-						}
-					}
-				}
 
 				self.dismiss(animated: true)
+				{
+					self.layer.opacity = 0
+					if abs(velocity) > abs(threshold)
+					{
+						self.vib.prepare()
+						self.vib.impactOccurred()
+					}
+				}
 			}
 			else
 			{
@@ -208,6 +222,15 @@ class PUVC: UIViewController, UIGestureRecognizerDelegate
 
 		case .cancelled, .failed: break
 		default: break
+		}
+	}
+
+	override func dismiss(animated flag: Bool, completion: (() -> Void)? = nil)
+	{
+		super.dismiss(animated: flag, completion: completion)
+		UIView.animate(withDuration: 0.1, delay: 0, options: .curveLinear)
+		{
+			self.layer.opacity = 0
 		}
 	}
 }
