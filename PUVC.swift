@@ -107,15 +107,33 @@ class PUVC: UIViewController, UIGestureRecognizerDelegate
 								forHeaderFooterViewReuseIdentifier: forHeaderFooterViewReuseIdentifier)
 	}
 
+	func update()
+	{
+		self.tableView?.reloadData()
+	}
+
+	private var cellNib: UINib?
+	private var identifier: String?
+
+	convenience init(with cellNib: UINib, identifier: String) {
+		self.init()
+		self.cellNib = cellNib
+		self.identifier = identifier
+	}
+
 	override func viewDidLoad()
 	{
 		super.viewDidLoad()
 
+		if let cellNib = cellNib, let identifier = identifier
+		{
+			self.register(cellNib, forCellReuseIdentifier: identifier)
+		}
+
 		self.view.layer.insertSublayer(self.layer, at: 0)
-		self.layer.backgroundColor = UIColor.black.cgColor
-		self.layer.opacity = 0.0
-		self.layer.frame = CGRect(origin: .init(x: 0, y: -UIScreen.main.bounds.height),
-								  size: .init(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height * 2))
+		self.layer.removeAllAnimations()
+
+		self.layer.frame = CGRect(x: -10000, y: -10000, width: 20000, height: 20000)
 
 		if #available(iOS 11.0, *)
 		{
@@ -133,23 +151,17 @@ class PUVC: UIViewController, UIGestureRecognizerDelegate
 	override func viewWillAppear(_ animated: Bool)
 	{
 		super.viewWillAppear(animated)
-		if animated
-		{
-			UIView.animate(withDuration: animated ? 0.5 : 0, delay: 0, options: .curveLinear)
-			{
-			}
-		completion:
-			{
-				if $0
-				{
-					self.layer.opacity = 0.5
-				}
-			}
-		}
-		else
-		{
-			self.layer.opacity = 0.5
-		}
+
+		self.layer.backgroundColor = UIColor.clear.cgColor
+		self.layer.opacity = 0.5
+		let color = UIColor.black.cgColor
+		let colorAnimation = CABasicAnimation(keyPath: "backgroundColor")
+		colorAnimation.duration = 0.5
+		colorAnimation.toValue = color
+		self.layer.add(colorAnimation, forKey: nil)
+
+		UIView.animate(withDuration: 0.5, delay: 0, options: .curveLinear, animations: {})
+		{ if $0 { self.layer.backgroundColor = color } }
 	}
 
 	@objc public func pan(_ s: UIPanGestureRecognizer)
@@ -166,16 +178,17 @@ class PUVC: UIViewController, UIGestureRecognizerDelegate
 			self.prevTime = Date()
 
 		case .changed:
-			let i2 = self.prevTime.timeIntervalSince1970 - Date().timeIntervalSince1970
 			if self.startPosition > self.tableView.frame.minY
 			{
 				let realShift = swipePosition - self.startPosition
 				let position = max(self.startLayerPosition + realShift, self.startLayerPosition)
-				UIView.animate(withDuration: i2, delay: 0, options: .curveLinear)
-				{
-					self.view.layer.position.y = position
-					self.layer.opacity = Float(0.5 - (position/self.view.frame.height) * 0.5)
-				}
+
+				self.view.layer.position.y = position
+
+				CATransaction.begin()
+				CATransaction.setDisableActions(true)
+				self.layer.opacity = Float(1 - position/self.view.frame.height)
+				CATransaction.commit()
 			}
 
 		case .ended:
@@ -186,16 +199,16 @@ class PUVC: UIViewController, UIGestureRecognizerDelegate
 				UIView.animate(withDuration: 0.1, delay: 0, options: .curveLinear)
 				{
 					self.layer.opacity = 0
-				}
-
-				self.dismiss(animated: true)
-				{
-					self.layer.opacity = 0
 					if abs(velocity) > abs(threshold)
 					{
 						self.vib.prepare()
 						self.vib.impactOccurred()
 					}
+				}
+
+				self.dismiss(animated: true)
+				{
+					self.layer.opacity = 0
 				}
 			}
 			else
