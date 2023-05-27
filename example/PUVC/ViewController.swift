@@ -11,7 +11,7 @@ private let testCell = "TestCell"
 
 class ViewController: UIViewController
 {
-	let puvc = PUVC()
+	let puvc = PUVC(with: UINib(nibName: testCell, bundle: nil), identifier: testCell)
 	var num = Int(arc4random()%10) + 2
 
 	override func viewDidLoad()
@@ -23,10 +23,9 @@ class ViewController: UIViewController
 	{
 		self.num = Int(arc4random()%10) + 3
 		self.present(self.puvc, animated: true)
-		let celNib = UINib(nibName: testCell, bundle: nil)
-		self.puvc.register(celNib, forCellReuseIdentifier: testCell)
 		self.puvc.delegate = self
 		self.puvc.dataSource = self
+		self.puvc.update()
 	}
 }
 
